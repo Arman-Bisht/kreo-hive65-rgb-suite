@@ -24,6 +24,15 @@ Usage:
   keyboardrgb.py gradient <rrggbb> <rrggbb>  # left-to-right gradient
   keyboardrgb.py rainbow                     # rainbow across columns
   keyboardrgb.py wave [seconds]              # animated hue wave (forever if no time)
+  keyboardrgb.py flux [options]              # drifting multi-source gradient
+      --colors 2|3|4           number of moving color sources (default 3)
+      --motion walk|drift      walk = random-walk + edge bounce (organic, unique
+                               each run); drift = sum-of-sines (silky, reproducible)
+      --hex R,R,...            custom source colors (default: colorful palette)
+      --speed FLOAT            motion speed multiplier (1.0)
+      --sharp FLOAT            blend sharpness, 2 = soft, higher = tighter (2.0)
+      --seed INT               walk only: seed a repeatable wander
+      --fps N --duration SEC   runs until Ctrl-C unless --duration is given
   keyboardrgb.py off                         # all LEDs off
   keyboardrgb.py raw <hex...>                # send raw feature report
   keyboardrgb.py walk [--delay S] [--start N] [--end N]
@@ -92,7 +101,14 @@ import time
 import kbd_profiles
 from color import parse_hex
 from device import Kbd, PROFILES, find_device, _flush, _match_node, hold
-from effects import render_gradient, render_rainbow, run_audio, run_screen, run_wave
+from effects import (
+    render_gradient,
+    render_rainbow,
+    run_audio,
+    run_flux,
+    run_screen,
+    run_wave,
+)
 
 
 def run_walk(k, argv):
@@ -227,6 +243,8 @@ def main():
     elif cmd == "wave":
         dur = float(a[1]) if len(a) > 1 else None  # None = run until Ctrl-C
         run_wave(k, dur)
+    elif cmd == "flux":
+        run_flux(k, a[1:])
     elif cmd == "audio":
         run_audio(k, a[1:])
     elif cmd == "screen":

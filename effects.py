@@ -7,10 +7,11 @@ Each render helper fills the Kbd frame buffer; the animated ones own their loop
 and re-send via device._flush (which rides out firmware resets)."""
 import argparse
 import math
+import random
 import time
 
 from audio import AudioTap, Spectrum
-from color import hsv, palette_at, parse_hex
+from color import COLORFUL_PALETTE, hsv, palette_at, parse_hex
 from device import Kbd, _flush
 
 TAU = 2.0 * math.pi
@@ -103,6 +104,137 @@ def run_wave(k, dur):
             time.sleep(1 / 60)
     except KeyboardInterrupt:
         pass
+
+
+# --- flux: drifting multi-source gradient (non-audio) ------------------------
+# `--colors` color "sources" wander the board; every key is an inverse-distance
+# blend of them, so the whole surface reads as one smooth gradient that morphs
+# as the sources move. Two motions: 'walk' random-walks each source's heading at
+# constant speed and reflects it off the edges (organic, different every run);
+# 'drift' places each source with a sum of sine waves at incommensurate
+# frequencies (silky, never exactly repeats, deterministic/reproducible).
+FLUX_BASE_SPEED = 0.35  # source travel, board-units/sec at --speed 1 (walk)
+FLUX_WALK_TURN = 1.6  # heading random-walk, radians/sec at --speed 1 (walk)
+FLUX_DRIFT_FREQS_X = (0.061, 0.127, 0.211)  # Hz, incommensurate -> non-repeating
+FLUX_DRIFT_FREQS_Y = (0.083, 0.149, 0.193)
+FLUX_DRIFT_AMPS = (0.5, 0.3, 0.2)  # sum 1.0 -> the sine sum spans [-1, 1] exactly
+
+
+def _flux_bounds(geom):
+    """Bounding box (xmin, xmax, ymin, ymax) of the profile's key geometry, so
+    sources roam only where keys actually are."""
+    xs = [g[0] for g in geom.values()]
+    ys = [g[1] for g in geom.values()]
+    return min(xs), max(xs), min(ys), max(ys)
+
+
+def run_flux(k, argv):
+    """Multi-source drifting gradient. `--colors` moving color sources wander the
+    board and every key is an inverse-distance blend of them, so the surface is
+    one smooth gradient that morphs as they move. Runs until Ctrl-C."""
+    p = argparse.ArgumentParser(
+        prog="keyboardrgb.py flux", description="drifting multi-source gradient"
+    )
+    p.add_argument("--colors", type=int, choices=[2, 3, 4], default=3,
+                   help="number of moving color sources (default 3)")
+    p.add_argument("--motion", choices=["walk", "drift"], default="walk",
+                   help="walk = random-walk + edge bounce (organic, unique each "
+                        "run); drift = sum-of-sines (silky, deterministic)")
+    p.add_argument("--hex", default=None,
+                   help="comma-separated source colors (e.g. ff4242,7c3aed,06b6d4); "
+                        "default samples the colorful palette")
+    p.add_argument("--speed", type=float, default=1.0,
+                   help="motion speed multiplier (default 1.0)")
+    p.add_argument("--sharp", type=float, default=2.0,
+                   help="blend sharpness: 2 = soft gradient, higher = tighter "
+                        "cells around each source (default 2.0)")
+    p.add_argument("--fps", type=float, default=60.0)
+    p.add_argument("--seed", type=int, default=None,
+                   help="walk only: RNG seed for a repeatable wander (default random)")
+    p.add_argument("--duration", type=float, default=None, help="stop after N seconds")
+    o = p.parse_args(argv)
+
+    # source colors: explicit --hex list wins, else the first N palette entries
+    if o.hex:
+        colf = [tuple(map(float, parse_hex(h))) for h in o.hex.split(",") if h.strip()]
+    else:
+        colf = [tuple(map(float, c)) for c in COLORFUL_PALETTE[:o.colors]]
+    n = len(colf)
+
+    geom = k.p.geom
+    keys = k.p.keys_tuples
+    xmin, xmax, ymin, ymax = _flux_bounds(geom)
+    cx, cy = (xmin + xmax) / 2.0, (ymin + ymax) / 2.0
+    hx, hy = (xmax - xmin) / 2.0 or 1e-6, (ymax - ymin) / 2.0 or 1e-6
+    half_sharp = o.sharp / 2.0  # weight = 1 / (dist**sharp + eps) = 1/(d2**half + eps)
+    eps = 1e-3
+
+    frame_dt = 1.0 / o.fps if o.fps > 0 else 1.0 / 60.0
+    base_v = FLUX_BASE_SPEED * o.speed  # walk: constant travel speed
+    turn = FLUX_WALK_TURN * o.speed * frame_dt  # walk: heading jitter per frame
+    rng = random.Random(o.seed)  # seed None -> fresh wander each launch
+    # walk state: constant speed, only the heading random-walks (stays smooth)
+    px = [rng.uniform(xmin, xmax) for _ in range(n)]
+    py = [rng.uniform(ymin, ymax) for _ in range(n)]
+    ang = [rng.uniform(0.0, TAU) for _ in range(n)]
+    sx, sy = [0.0] * n, [0.0] * n
+
+    print(f"flux: colors={n} motion={o.motion} speed={o.speed:g} "
+          f"sharp={o.sharp:g} fps={o.fps:g}"
+          + (f" seed={o.seed}" if o.motion == "walk" and o.seed is not None else ""))
+    t0 = time.monotonic()
+    frames = 0
+    try:
+        while o.duration is None or time.monotonic() - t0 < o.duration:
+            tstart = time.monotonic()
+            t = tstart - t0
+            if o.motion == "drift":  # deterministic sum-of-sines per source/axis
+                for i in range(n):
+                    ph = i * 1.7
+                    xs = sum(FLUX_DRIFT_AMPS[j] * math.sin(
+                        TAU * FLUX_DRIFT_FREQS_X[j] * t * o.speed + ph + j * 0.9)
+                        for j in range(3))
+                    ys = sum(FLUX_DRIFT_AMPS[j] * math.sin(
+                        TAU * FLUX_DRIFT_FREQS_Y[j] * t * o.speed + ph + 1.3 + j * 1.1)
+                        for j in range(3))
+                    sx[i], sy[i] = cx + hx * xs, cy + hy * ys
+            else:  # walk: step at constant speed, reflect heading off the edges
+                for i in range(n):
+                    ang[i] += rng.uniform(-turn, turn)
+                    px[i] += base_v * math.cos(ang[i]) * frame_dt
+                    py[i] += base_v * math.sin(ang[i]) * frame_dt
+                    if px[i] < xmin or px[i] > xmax:
+                        px[i] = min(max(px[i], xmin), xmax)
+                        ang[i] = math.pi - ang[i]
+                    if py[i] < ymin or py[i] > ymax:
+                        py[i] = min(max(py[i], ymin), ymax)
+                        ang[i] = -ang[i]
+                    sx[i], sy[i] = px[i], py[i]
+
+            for name, col, row in keys:
+                nx, ny = geom[name][0], geom[name][1]
+                wsum = r = g = b = 0.0
+                for i in range(n):
+                    dx, dy = nx - sx[i], ny - sy[i]
+                    w = 1.0 / ((dx * dx + dy * dy) ** half_sharp + eps)
+                    cr, cg, cb = colf[i]
+                    r += w * cr
+                    g += w * cg
+                    b += w * cb
+                    wsum += w
+                k.set_key(name, int(r / wsum), int(g / wsum), int(b / wsum))
+            _flush(k)
+            frames += 1
+            time.sleep(max(0.0, frame_dt - (time.monotonic() - tstart)))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            k.clear()
+            k.flush()
+        except OSError:
+            pass
+    print(f"{frames} frames in {time.monotonic() - t0:.1f}s")
 
 
 # --- audio-reactive effect registry -----------------------------------------
