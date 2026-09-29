@@ -1,3 +1,14 @@
-# BY Tech / SinoWealth gaming keyboard 258a:010c — allow seated user RGB control
+# Allow the seated user RGB control over supported keyboards' hidraw nodes.
+# Keep one pair of rules per USB id, matching profiles/*.json identity.usb_ids.
+
+# BY Tech / SinoWealth gaming keyboard 258a:010c (hive65, aulaf75)
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="010c", TAG+="uaccess"
 KERNEL=="hidraw*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="010c", TAG+="uaccess"
+
+# Portronics Hydra 10 258a:0049 (hydra10, provisional)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="0049", TAG+="uaccess"
+KERNEL=="hidraw*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="0049", TAG+="uaccess"
+
+# Cosmic Byte Artemis 04d9:a1ce, Holtek MCU (artemis, provisional)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="a1ce", TAG+="uaccess"
+KERNEL=="hidraw*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="a1ce", TAG+="uaccess"

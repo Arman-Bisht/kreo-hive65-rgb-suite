@@ -23,6 +23,7 @@ Usage:
   kbd_ws_server.py [--host 127.0.0.1] [--port 8787]
   kbd_ws_server.py emit-client <dir>     # write schema.json + TS client/hook
 """
+
 import argparse
 import base64
 import hashlib
@@ -122,7 +123,10 @@ class Writer(threading.Thread):
                 self.kbd.flush()
                 self.flushes += 1
                 if self.debug:
-                    print(f"[kbd] flush #{self.flushes} first_key={bytes(self.pending[3:6]).hex()}", flush=True)
+                    print(
+                        f"[kbd] flush #{self.flushes} first_key={bytes(self.pending[3:6]).hex()}",
+                        flush=True,
+                    )
             except OSError as e:
                 if e.errno in device.Kbd.GONE_ERRNOS:
                     print("[kbd] firmware reset, reconnecting...", flush=True)
@@ -152,7 +156,9 @@ def frame_from_binary(data):
     elif len(data) == RGB_BYTES:
         rgb[:] = data
     else:
-        raise ValueError(f"binary frame must be {NKEYS*3} or {RGB_BYTES} bytes, got {len(data)}")
+        raise ValueError(
+            f"binary frame must be {NKEYS * 3} or {RGB_BYTES} bytes, got {len(data)}"
+        )
     return rgb
 
 
@@ -340,9 +346,7 @@ def emit_client(dest):
             "col: number; row: number; slot: number; }\n\n"
             f"export const KEY_COUNT = {NKEYS};\n"
             f"export const GRID = {{ cols: {GRID_COLS}, rows: {GRID_ROWS} }} as const;\n\n"
-            "export const KEYS: readonly KeyDef[] = [\n  "
-            + keys_ts
-            + ",\n];\n\n"
+            "export const KEYS: readonly KeyDef[] = [\n  " + keys_ts + ",\n];\n\n"
             "export const KEY_INDEX: Record<string, number> = "
             "Object.fromEntries(KEYS.map(k => [k.name, k.index]));\n"
         )
@@ -350,10 +354,13 @@ def emit_client(dest):
         f.write(TS_CLIENT)
     with open(os.path.join(dest, "useKeyboard.ts"), "w") as f:
         f.write(TS_HOOK)
-    print("wrote schema.json, keyboardLayout.ts, keyboardClient.ts, useKeyboard.ts to", dest)
+    print(
+        "wrote schema.json, keyboardLayout.ts, keyboardClient.ts, useKeyboard.ts to",
+        dest,
+    )
 
 
-TS_CLIENT = r'''// Typed client for the keyboard WebSocket bridge. Zero dependencies.
+TS_CLIENT = r"""// Typed client for the keyboard WebSocket bridge. Zero dependencies.
 import { KEYS, KEY_COUNT, KEY_INDEX } from "./keyboardLayout";
 
 export type RGB = [number, number, number];
@@ -431,9 +438,9 @@ export class KeyboardClient {
 }
 
 export { KEYS, KEY_COUNT, KEY_INDEX };
-'''
+"""
 
-TS_HOOK = r'''// React hook wrapping KeyboardClient. Usage:
+TS_HOOK = r"""// React hook wrapping KeyboardClient. Usage:
 //   const { ready, sendColors, setKeys, fill, clear } = useKeyboard();
 import { useEffect, useRef, useState, useCallback } from "react";
 import { KeyboardClient, RGB, Schema } from "./keyboardClient";
@@ -461,7 +468,7 @@ export function useKeyboard(url = "ws://127.0.0.1:8787") {
 
   return { ready, schema, sendFrame, sendColors, setKeys, fill, clear };
 }
-'''
+"""
 
 
 def main():

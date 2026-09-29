@@ -98,7 +98,13 @@ directions.
   dispatcher over the modules: `device.py` (discovery + the `Kbd` driver),
   `effects.py` (renderers), `audio.py` (capture + FFT), `color.py` (color
   math), and `kbd_profiles.py` + `profiles/*.json` (per-board identity /
-  protocol / layout). Adding a keyboard is a new JSON file — no code changes.
+  protocol / layout). Adding a keyboard *in this family* — one that streams a
+  header + contiguous RGB block as a SET_FEATURE on report 6 — is a new JSON
+  file with no code changes. A board outside it needs code: a new frame encoder
+  in `ENCODERS`, and, if it does not use SET_FEATURE at all, a new transport in
+  `device.py`. The Cosmic Byte Artemis (`04d9:a1ce`, Holtek) is the worked
+  example of the latter — see `profiles/artemis.json` and
+  `reverse-engineering/artemis_a1ce.py`.
 - `kbd_ws_server.py` — zero-dep WebSocket bridge (RFC6455 on stdlib) that
   streams RGB frames from any app to the board via a coalescing latest-wins
   writer thread (~12 ms latency). Reuses the `Kbd` driver. Primary frame =

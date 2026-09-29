@@ -7,7 +7,9 @@ happens to be playing. And when the sound stops, it quietly drifts into an
 ambient gradient on its own.
 
 It works with the wired 65% keyboard that shows up on USB as `258a:010c`
-"BY Tech Gaming Keyboard" (that's the Kreo Hive 65)
+"BY Tech Gaming Keyboard" (that's the Kreo Hive 65). The Aula F75 uses the
+same chip and works too, with one extra flag. See
+[Using it with an Aula F75](#using-it-with-an-aula-f75).
 
 ## What you need
 
@@ -61,6 +63,59 @@ to Troubleshooting below.
 > you'd rather set a color and have the command exit right away (from a
 > startup script, say), add `--once`:
 > `python3 keyboardrgb.py color ff0000 --once`.
+
+## Using it with an Aula F75
+
+The Aula F75 runs the same firmware as the Hive 65. It even reports the exact
+same USB id (`258a:010c`), so the setup above works as-is: the udev rule
+already covers it, and there's nothing else to install. The difference is the
+layout. The F75 is a 75% board with an extra F-key row and a knob, and its
+LEDs are numbered differently.
+
+Because both boards look identical over USB, the tool can't tell them apart
+and assumes a Hive 65. On an F75 that shows up as colors landing on the wrong
+keys (the F-row especially). The fix is to tell it which board you have by
+adding `--profile aulaf75` to every command:
+
+```bash
+python3 keyboardrgb.py --profile aulaf75 color ff0000
+python3 keyboardrgb.py --profile aulaf75 rainbow
+python3 keyboardrgb.py --profile aulaf75 audio --effect vortex
+python3 keyboardrgb.py --profile aulaf75 key f1 ff0000 f2 00ff00 knob 0000ff
+```
+
+The flag can go anywhere on the line, before or after the command. Check that
+it took by looking at the first line of output, which should say
+`device: /dev/hidrawN (Aula F75 (258a:010c))`.
+
+To avoid typing it every time, add an alias to your shell config:
+
+```bash
+alias kbd='python3 ~/kbd-re/keyboardrgb.py --profile aulaf75'   # bash/zsh
+# then: kbd audio --effect bars
+```
+
+(fish: `alias kbd 'python3 ~/kbd-re/keyboardrgb.py --profile aulaf75'; funcsave kbd`)
+
+**Extra key names** on the F75, in addition to the list under
+[Other commands](#other-commands): `grave` (the `` ` `` key), `f1` to `f12`,
+`end`, and `knob`. It has no `home` or `ralt` key.
+
+**Not yet confirmed on hardware:** the knob's LED, and whether `f11`/`f12` sit
+where the profile puts them. If one of those lights the wrong key, run the
+slot walker, which lights one LED at a time and prints its number:
+
+```bash
+python3 keyboardrgb.py --profile aulaf75 walk --start 60 --end 100
+```
+
+Note which slot lights which key, then fix that key's entry in
+`profiles/zaula-f75.json` (add `"slot": N` to it to override the formula).
+The file's `note` field explains the numbering.
+
+**Web UI:** the WebSocket bridge (`kbd_ws_server.py`, used by the browser app
+in `client/`) always uses the Hive 65 layout for now. On an F75 it still
+drives the main block, but the F-row and knob won't map correctly.
 
 ## Audio-reactive mode
 

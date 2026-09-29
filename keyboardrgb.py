@@ -193,8 +193,10 @@ def main():
     profiles = _select_profile(prof_name, vid, pid)
     if "--list-profiles" in a:
         for pid_, p in PROFILES.items():
-            print(f"{pid_:12s} {p.name}  ({p.key_count()} keys, {p.cols}x{p.rows}, "
-                  f"{p.pkt_len}B, usb={','.join(p.usb_ids)})")
+            print(
+                f"{pid_:12s} {p.name}  ({p.key_count()} keys, {p.cols}x{p.rows}, "
+                f"{p.pkt_len}B, usb={','.join(p.usb_ids)})"
+            )
         return 0
     if not a:
         print(__doc__)
