@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
-"""System-audio capture (parec monitor or stdin) and a pure-Python radix-2 FFT
-into log-spaced frequency bands — the front end for the audio-reactive effects."""
+"""System-audio capture (parec monitor on Linux, soundcard WASAPI loopback on
+Windows, or stdin) and a pure-Python radix-2 FFT into log-spaced frequency bands
+— the front end for the audio-reactive effects."""
 import cmath
 import math
 import os
 import struct
 import subprocess
 import sys
+import threading
+import time
 
 
 def default_monitor():
+    if sys.platform == "win32":
+        try:
+            import soundcard as sc
+            return sc.default_speaker().name
+        except Exception:
+            return "Default Speaker"
+
     try:
         sink = subprocess.check_output(
             ["pactl", "get-default-sink"], text=True, stderr=subprocess.DEVNULL
@@ -23,38 +33,89 @@ def default_monitor():
 
 
 class AudioTap:
-    """Non-blocking system-audio capture: parec on a monitor source, or stdin."""
+    """Non-blocking system-audio capture: parec on a monitor source (Linux),
+    WASAPI loopback (Windows), or stdin."""
 
     def __init__(self, source, rate, nsamples):
         self.nsamples = nsamples
         self.nbytes = nsamples * 2  # s16le mono
+        self.rate = rate
         self.buf = bytearray()
         self.drained = 0  # bytes since last check (debug aid)
         self.eof = False
+        self._pump = None
+
         if source == "-":
             self.proc = None
             self.source = "<stdin>"
             self.fd = sys.stdin.buffer.fileno()
-        else:
-            self.source = source or default_monitor()
-            self.proc = subprocess.Popen(
-                [
-                    "parec",
-                    "--raw",
-                    "--format=s16le",
-                    f"--rate={rate}",
-                    "--channels=1",
-                    f"--device={self.source}",
-                    "--latency-msec=20",
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            self.fd = self.proc.stdout.fileno()
+            os.set_blocking(self.fd, False)
+            return
+
+        self.source = source or default_monitor()
+
+        if sys.platform == "win32":
+            self.proc = None
+            self._stop = threading.Event()
+            self._latest_samples = None
+            self._lock = threading.Lock()
+            self._pump = threading.Thread(target=self._pump_windows, daemon=True)
+            self._pump.start()
+            return
+
+        # Linux pipeline (parec)
+        self.proc = subprocess.Popen(
+            [
+                "parec",
+                "--raw",
+                "--format=s16le",
+                f"--rate={rate}",
+                "--channels=1",
+                f"--device={self.source}",
+                "--latency-msec=20",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.fd = self.proc.stdout.fileno()
         os.set_blocking(self.fd, False)
 
+    def _pump_windows(self):
+        """WASAPI loopback audio pump on Windows using soundcard."""
+        try:
+            import soundcard as sc
+        except ImportError:
+            raise SystemExit("soundcard is required on Windows: pip install soundcard")
+
+        try:
+            spk = None
+            if self.source and self.source != "Default Speaker":
+                for s in sc.all_speakers():
+                    if self.source.lower() in s.name.lower():
+                        spk = s
+                        break
+            if spk is None:
+                spk = sc.default_speaker()
+
+            loopback_mic = sc.get_microphone(id=str(spk.name), include_loopback=True)
+            with loopback_mic.recorder(samplerate=self.rate, channels=1) as mic:
+                while not self._stop.is_set():
+                    data = mic.record(numframes=self.nsamples)
+                    # data is (nsamples, 1) float32 [-1.0, 1.0]
+                    samples = tuple(int(max(-1.0, min(1.0, s)) * 32767.0) for s in data[:, 0])
+                    with self._lock:
+                        self._latest_samples = samples
+        except Exception:
+            pass
+
     def read(self):
-        """Drain the pipe; return the latest window as int16 tuple, or None."""
+        """Drain the audio source; return the latest window as int16 tuple, or None."""
+        if sys.platform == "win32" and self.proc is None and self.source != "<stdin>":
+            with self._lock:
+                s = self._latest_samples
+                self._latest_samples = None
+                return s
+
         while True:
             try:
                 chunk = os.read(self.fd, 65536)
@@ -79,7 +140,11 @@ class AudioTap:
         return struct.unpack(f"<{self.nsamples}h", bytes(self.buf))
 
     def close(self):
-        if self.proc:
+        if sys.platform == "win32" and hasattr(self, "_stop"):
+            self._stop.set()
+            if self._pump:
+                self._pump.join(timeout=1.0)
+        if hasattr(self, "proc") and self.proc:
             self.proc.terminate()
             self.proc.wait()
 

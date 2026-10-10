@@ -2,21 +2,16 @@
 """Screen capture for the screen-sync effect: a continuous low-res, blurred
 mirror of a monitor, delivered as small RGB grids sized to the keyboard.
 
-The platform's native capture tool (grim on wlroots Wayland) grabs full frames
-— a cheap GPU->shm copy — which are piped through one long-lived ffmpeg that
-downscales to ~144p, gaussian-blurs, and area-downscales to the key grid.
-Python only reads a few hundred bytes per frame, so the effect stays light.
-This mirrors audio.AudioTap: an external capture tool feeding stdlib Python.
-
-Follow-focus (Hyprland): the grabbed output is re-queried from hyprctl every
-few hundred ms, so the mirror tracks whichever monitor currently has focus.
-On X11 (no WAYLAND_DISPLAY) ffmpeg's x11grab captures the display directly and
-no grim pump is needed.
+Cross-platform:
+- Linux (Wayland): grim -> ffmpeg
+- Linux (X11): ffmpeg x11grab
+- Windows: native mss capture with OpenCV/PIL downscale & blur
 """
 import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import time
 
@@ -44,13 +39,44 @@ def wlr_outputs():
     return [ln.split()[0] for ln in out.splitlines() if ln and not ln[0].isspace()]
 
 
+def windows_outputs():
+    """Output names on Windows using mss."""
+    try:
+        import mss
+        with mss.MSS() as sct:
+            return [f"Monitor {i}" for i in range(1, len(sct.monitors))]
+    except Exception:
+        return ["Monitor 1"]
+
+
 def list_outputs():
-    """Every connected output name (hyprctl first, then wlr-randr)."""
+    """Every connected output name."""
+    if sys.platform == "win32":
+        return windows_outputs()
     return [n for n, _ in hypr_monitors()] or wlr_outputs()
 
 
 def focused_output():
-    """Name of the focused monitor (Hyprland), or None if not discoverable."""
+    """Name of the focused monitor, or None if not discoverable."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            import mss
+            user32 = ctypes.windll.user32
+            hwnd = user32.GetForegroundWindow()
+            if hwnd:
+                rect = (ctypes.c_long * 4)()
+                if user32.GetWindowRect(hwnd, rect):
+                    left, top, right, bottom = rect
+                    cx = (left + right) // 2
+                    cy = (top + bottom) // 2
+                    with mss.MSS() as sct:
+                        for idx, m in enumerate(sct.monitors[1:], start=1):
+                            if m["left"] <= cx < m["left"] + m["width"] and m["top"] <= cy < m["top"] + m["height"]:
+                                return f"Monitor {idx}"
+        except Exception:
+            pass
+        return "Monitor 1"
     for name, foc in hypr_monitors():
         if foc:
             return name
@@ -70,21 +96,33 @@ class ScreenTap:
     """
 
     def __init__(self, output, follow, cols, rows, res=144, blur=2.0, fps=24.0):
-        if shutil.which("ffmpeg") is None:
-            raise SystemExit("screen sync needs ffmpeg (not found on PATH)")
         self.cols, self.rows = cols, rows
         self.frame_bytes = cols * rows * 3
         self.follow = follow
         self.fps = fps
+        self.res = res
+        self.blur = blur
         self._stop = threading.Event()
         self.buf = bytearray()
         self.eof = False
         self._pump = None
         self._last_focus_check = 0.0
 
-        # capture height sets the "144p" working resolution; -2 keeps the aspect
-        # (and an even width). fast_bilinear + a box blur (avgblur) is ~half the
-        # CPU of bicubic+gaussian and visually identical once crushed to the grid.
+        if sys.platform == "win32":
+            self.backend = "windows_mss"
+            self.output = output or default_output()
+            self._latest = None
+            self._lock = threading.Lock()
+            self._new_frame = threading.Event()
+            self.ff = None
+            self._pump = threading.Thread(target=self._pump_windows, daemon=True)
+            self._pump.start()
+            return
+
+        # Linux pipeline
+        if shutil.which("ffmpeg") is None:
+            raise SystemExit("screen sync needs ffmpeg (not found on PATH)")
+
         parts = [f"scale=-2:{int(res)}:flags=fast_bilinear"]
         rad = int(round(blur))
         if rad >= 1:
@@ -135,6 +173,91 @@ class ScreenTap:
             if f:
                 self.output = f
 
+    def _pump_windows(self):
+        """Screen capture pump on Windows using mss + cv2/PIL."""
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            hdesk = user32.OpenDesktopW("default", 0, False, 0x01FF)
+            if hdesk:
+                user32.SetThreadDesktop(hdesk)
+        except Exception:
+            pass
+
+        try:
+            import mss
+        except ImportError:
+            raise SystemExit("mss is required on Windows. Install with: pip install mss")
+
+        try:
+            import cv2
+            import numpy as np
+            has_cv2 = True
+        except ImportError:
+            has_cv2 = False
+            from PIL import Image, ImageFilter
+
+        period = 1.0 / self.fps if self.fps > 0 else 0.0
+        rad = int(round(self.blur))
+
+        with mss.MSS() as sct:
+            while not self._stop.is_set():
+                t = time.monotonic()
+                self._maybe_update_focus(t)
+
+                # Parse monitor index
+                mon_idx = 1
+                try:
+                    if isinstance(self.output, int):
+                        mon_idx = self.output
+                    elif isinstance(self.output, str):
+                        parts = self.output.split()
+                        mon_idx = int(parts[-1]) if parts[-1].isdigit() else 1
+                except Exception:
+                    mon_idx = 1
+
+                if mon_idx < 1 or mon_idx >= len(sct.monitors):
+                    mon_idx = 1
+
+                try:
+                    mon = sct.monitors[mon_idx]
+                    sct_img = sct.grab(mon)
+
+                    if has_cv2:
+                        raw = np.frombuffer(sct_img.raw, dtype=np.uint8).reshape(
+                            (sct_img.height, sct_img.width, 4)
+                        )
+                        # Downscale to ~res height
+                        h, w = raw.shape[:2]
+                        target_h = self.res
+                        target_w = max(self.cols, int(w * (target_h / h)))
+                        small = cv2.resize(raw, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
+                        if rad >= 1:
+                            ksize = rad * 2 + 1
+                            small = cv2.blur(small, (ksize, ksize))
+                        grid = cv2.resize(small, (self.cols, self.rows), interpolation=cv2.INTER_AREA)
+                        grid_rgb = cv2.cvtColor(grid, cv2.COLOR_BGRA2RGB)
+                        flat = [tuple(int(c) for c in pt) for pt in grid_rgb.reshape(-1, 3)]
+                    else:
+                        img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+                        target_h = self.res
+                        target_w = max(self.cols, int(img.width * (target_h / img.height)))
+                        small = img.resize((target_w, target_h), Image.Resampling.BILINEAR)
+                        if rad >= 1:
+                            small = small.filter(ImageFilter.BoxBlur(rad))
+                        grid = small.resize((self.cols, self.rows), Image.Resampling.BOX)
+                        flat = list(grid.getdata())
+
+                    with self._lock:
+                        self._latest = flat
+                    self._new_frame.set()
+                except Exception:
+                    pass
+
+                dt = time.monotonic() - t
+                if period > dt:
+                    self._stop.wait(period - dt)
+
     def _pump_grim(self):
         """Grab full frames with grim and feed them to ffmpeg's stdin, throttled
         to the target fps. Runs in a daemon thread until close() or ffmpeg dies."""
@@ -166,8 +289,16 @@ class ScreenTap:
                 pass
 
     def read(self):
-        """Drain ffmpeg's output and return the newest complete grid as a flat
-        list of (r,g,b) tuples (cols*rows of them), or None if none is ready."""
+        """Return the newest complete grid as a flat list of (r,g,b) tuples
+        (cols*rows of them), or None if none is ready."""
+        if sys.platform == "win32":
+            timeout = (1.0 / self.fps) if self.fps > 0 else 0.05
+            if self._new_frame.wait(timeout=timeout):
+                self._new_frame.clear()
+                with self._lock:
+                    return self._latest
+            return None
+
         while True:
             try:
                 chunk = os.read(self.fd, 1 << 16)
@@ -196,7 +327,7 @@ class ScreenTap:
         self._stop.set()
         if self._pump:
             self._pump.join(timeout=1.0)
-        if self.ff:
+        if hasattr(self, "ff") and self.ff:
             self.ff.terminate()
             try:
                 self.ff.wait(timeout=1.0)

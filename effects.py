@@ -743,3 +743,122 @@ def run_screen(k, argv):
         except OSError:
             pass
     print(f"{frames} frames in {time.monotonic() - t0:.1f}s")
+
+
+def run_game(k, argv):
+    """Hybrid Game Mode: Screen color mirror + Bass hit explosion pulses & shockwaves.
+    Combines real-time monitor sync with WASAPI audio loopback."""
+    from screen import ScreenTap
+    from audio import AudioTap, Spectrum
+
+    p = argparse.ArgumentParser(
+        prog="keyboardrgb.py game",
+        description="hybrid gaming mode: screen sync + audio explosion pulses",
+    )
+    p.add_argument("--output", default=None, help="monitor to capture")
+    p.add_argument("--fps", type=float, default=30.0, help="frames per second")
+    p.add_argument("--res", type=int, default=144, help="capture height in px")
+    p.add_argument("--blur", type=float, default=0.5, help="blur radius in px at 144p")
+    p.add_argument("--saturation", "--sat", dest="saturation", type=float, default=1.0)
+    p.add_argument("--gain", type=float, default=1.0)
+    p.add_argument("--gamma", type=float, default=0.65)
+    p.add_argument("--smooth", type=float, default=0.4)
+    p.add_argument("--bass-punch", type=float, default=1.4, help="how much bass explosions boost brightness")
+    p.add_argument("--shockwave", action="store_true", default=True, help="expand explosion rings from center")
+    p.add_argument("--source", default=None, help="audio source")
+    p.add_argument("--rate", type=int, default=44100, help="audio sample rate")
+    p.add_argument("--duration", type=float, default=None, help="stop after N seconds")
+    p.add_argument("--debug", action="store_true")
+    o = p.parse_args(argv)
+
+    sat = o.saturation
+    gain = o.gain
+    gamma = o.gamma
+    ema = min(0.95, max(0.0, o.smooth))
+
+    tap_screen = ScreenTap(o.output, True, k.p.cols, k.p.rows, res=o.res, blur=o.blur, fps=o.fps)
+    tap_audio = AudioTap(o.source, o.rate, 1024)
+    spec = Spectrum(1024, o.rate, 16)
+
+    key_cell = [(name, row * k.p.cols + col) for name, col, row in k.p.keys_tuples]
+    print(
+        f"game hybrid mode: screen={tap_screen.output} audio={tap_audio.source} "
+        f"fps={o.fps:g} sat={sat:g} gamma={gamma:g} punch={o.bass_punch:g}"
+    )
+
+    frame_dt = 1.0 / o.fps if o.fps > 0 else 0.0
+    smoothed = None
+    t0 = time.monotonic()
+    frames = 0
+
+    ref = 1e-3
+    REF_DECAY, REF_FLOOR = 0.995, 2e-4
+    last_bass = 0.0
+    shockwave_time = -10.0
+    shockwave_speed = 3.5  # rings/sec expanding out
+
+    try:
+        while o.duration is None or time.monotonic() - t0 < o.duration:
+            tstart = time.monotonic()
+            grid = tap_screen.read()
+            samples = tap_audio.read()
+
+            # Process audio
+            bass = 0.0
+            if samples:
+                raw = spec.bands(samples)
+                bass_raw = sum(raw[:4]) / 4.0
+                ref = max(ref * REF_DECAY, max(raw), REF_FLOOR)
+                bass = min(1.0, (bass_raw / ref) ** 0.6)
+                if bass - last_bass > 0.35 and (tstart - shockwave_time) > 0.25:
+                    shockwave_time = tstart
+                last_bass = bass
+
+            if grid is not None:
+                if ema > 0.0:
+                    if smoothed is None:
+                        smoothed = [list(c) for c in grid]
+                    else:
+                        for i, c in enumerate(grid):
+                            s = smoothed[i]
+                            s[0] += (c[0] - s[0]) * (1 - ema)
+                            s[1] += (c[1] - s[1]) * (1 - ema)
+                            s[2] += (c[2] - s[2]) * (1 - ema)
+                    src = smoothed
+                else:
+                    src = grid
+
+                global_boost = 1.0 + (bass * o.bass_punch)
+                sw_age = tstart - shockwave_time
+
+                for name, cell in key_cell:
+                    base_rgb = src[cell]
+                    r_gain = gain * global_boost
+
+                    if o.shockwave and 0 <= sw_age < 0.45:
+                        radius = k.p.geom[name][2]
+                        ring_r = sw_age * shockwave_speed
+                        dist = abs(radius - ring_r)
+                        if dist < 0.25:
+                            wave_intensity = (1.0 - (dist / 0.25)) * (1.0 - sw_age / 0.45)
+                            r_gain += wave_intensity * 1.5
+
+                    k.set_key(name, *apply_look(base_rgb, sat, r_gain, gamma))
+
+                _flush(k)
+                frames += 1
+                if o.debug and frames % max(1, int(o.fps)) == 0:
+                    print(f"game frame {(time.monotonic() - tstart) * 1000:.1f}ms | bass={bass:.2f}")
+
+            time.sleep(max(0.0, frame_dt - (time.monotonic() - tstart)))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        tap_screen.close()
+        tap_audio.close()
+        try:
+            k.clear()
+            k.flush()
+        except OSError:
+            pass
+    print(f"{frames} frames in {time.monotonic() - t0:.1f}s")

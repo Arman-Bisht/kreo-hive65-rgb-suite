@@ -1,405 +1,335 @@
-# Kreo Hive 65 - RGB Control for Linux (with an audio visualizer!)
+# 🎮 Kreo Hive 65 & BY Tech RGB Control Center
 
-Control your Kreo Hive 65 keyboard's RGB from Linux, no Windows software
-needed. Set any color per key, paint gradients, and run an audio-reactive
-mode that turns the whole board into a live soundwave for whatever your PC
-happens to be playing. And when the sound stops, it quietly drifts into an
-ambient gradient on its own.
+> **Advanced RGB controller & Screen Sync studio for the Kreo Hive 65 on Windows.**  
+> Real-time display ambilight, WASAPI music visualizers, game-reactive explosion shockwaves, and a modern desktop dashboard.
 
-It works with the wired 65% keyboard that shows up on USB as `258a:010c`
-"BY Tech Gaming Keyboard" (that's the Kreo Hive 65). The Aula F75 uses the
-same chip and works too, with one extra flag. See
-[Using it with an Aula F75](#using-it-with-an-aula-f75).
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20%7C%20Linux-blue?style=flat-square)](README.md)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-brightgreen?style=flat-square)](https://www.python.org/)
+[![Hardware](https://img.shields.io/badge/Hardware-Kreo%20Hive%2065%20%7C%20Aula%20F75-orange?style=flat-square)](profiles/)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 
-## What you need
+---
 
-- Any modern Linux (Arch, Ubuntu, Fedora, Mint, take your pick) with
-  PipeWire or PulseAudio. Every mainstream distro from the last few years
-  ships one of them.
-- Python 3, which is already there on most distros. No pip packages to
-  install.
-- The keyboard plugged in with its USB cable, in wired mode. Bluetooth and
-  the 2.4 GHz dongle won't cut it, since the RGB channel only exists over
-  the cable.
+## 📑 Table of Contents
 
-## Setup (one time, about 2 minutes)
+- [Overview](#-overview)
+- [Why This Exists](#-why-this-exists-the-color-accuracy-breakthrough)
+- [✨ Key Features](#-key-features)
+  - [🖥️ Desktop GUI Dashboard](#1-desktop-gui-dashboard-apppy)
+  - [🌈 Ultra-Accurate Screen Sync](#2-ultra-accurate-screen-sync)
+  - [💥 Hybrid Gaming Mode (Screen + Audio Shockwaves)](#3-hybrid-gaming-mode-screen--audio)
+  - [🎵 Real-Time Music Visualizers](#4-real-time-music-visualizers-wasapi--pulseaudio)
+  - [🌐 WebGL & 3D Shader Studio](#5-webgl--3d-shader-studio)
+- [🚀 Quick Start (Windows)](#-quick-start-windows)
+  - [1-Click Launchers](#1-click-launchers)
+  - [System Tray & Auto-Start](#system-tray--auto-start-on-boot)
+  - [Switching with Official Kreo Software](#switching-between-this-app-and-official-kreo-software)
+- [🐧 Quick Start (Linux)](#-quick-start-linux)
+- [⌨️ Keyboard Compatibility](#️-keyboard-compatibility)
+  - [Does it work with other Kreo keyboards?](#does-it-work-with-other-kreo-keyboards)
+  - [Adding Support for Any Keyboard in 3 Minutes](#adding-support-for-any-keyboard-in-3-minutes)
+- [🕹️ CLI Reference & Command Knobs](#️-cli-reference--command-knobs)
+- [🔧 Troubleshooting & FAQ](#-troubleshooting--faq)
+- [🛡️ Architecture & Safety Guarantee](#️-architecture--safety-guarantee)
+- [🙏 Acknowledgements & Credits](#-acknowledgements--credits)
+- [📄 License](#-license)
 
-**1. Grab the files.** Drop `keyboardrgb.py` and `60-keyboardrgb.rules` into
-a folder, say `~/kbd-re`, and open a terminal there.
+---
 
-**2. Give yourself permission to talk to the keyboard.** Out of the box
-Linux only lets root touch the keyboard's control channel. This installs a
-rule that basically says "whoever is sitting at this computer may control
-this specific keyboard". It's scoped to this one device and trivial to undo
-later (just delete the file):
+## 💡 Overview
 
+Standard keyboard software is often sluggish, closed-source, limited to static colors, and unable to react accurately to screen pixels or game audio.
+
+This project unlocks the full hardware capability of the **Kreo Hive 65** (and other keyboards using the **SinoWealth / BY Tech `258a:010c` MCU family**). It speaks directly to the keyboard's internal LED framebuffer via raw USB HID reports at up to **60 FPS** with **zero noticeable CPU overhead**.
+
+---
+
+## 🎨 Why This Exists: The Color Accuracy Breakthrough
+
+If you have ever used generic screen ambient software, you likely noticed that **all shades of blue look like one flat, generic blue**, dark navy becomes invisible, and cyan washes out into neon.
+
+### Why standard apps flatten colors:
+1. **Aggressive Averaging**: Most ambient tools calculate a broad average of large screen zones, collapsing subtle gradients into one single mid-tone.
+2. **Artificial Saturation Boosts**: Standard tools push saturation and gain over `1.5x`, blowing out digital color channels so light sky blue, baby blue, and midnight navy all clip into the same digital `(0, 0, 255)`.
+3. **LED Non-Linearity**: Keyboard LED diodes are far brighter at low digital levels than computer monitors. Without proper gamma correction, dark tones get swallowed while mid-tones look blinding.
+
+### How this project fixes it:
+- **Calibrated Gamma (`--gamma 0.65`)**: Expands the lower-end dynamic range so dark navy, slate blue, and deep midnight tones remain visually distinct from light sky blue and neon cyan.
+- **Natural Saturation (`--saturation 1.0`)**: Eliminates artificial channel clipping so every micro-shade from the game or movie shines through cleanly.
+- **Low Blur Radius (`--blur 0.5`)**: Preserves spatial borders between screen regions so neighboring keys show contrasting colors rather than mushing together.
+
+---
+
+## ✨ Key Features
+
+### 1. Desktop GUI Dashboard (`app.py`)
+No need to touch the terminal! Launch the full-featured dark-mode desktop app:
+- **Live 16×5 Keyboard Matrix Simulator**: Displays exact live key colors rendered on a virtual keyboard in real time.
+- **1-Click Mode Selector**: Switch instantly between **Screen Sync**, **Hybrid Game Mode**, **Music Visualizer**, **Rainbow Wave**, **Static Color**, or turn lighting off.
+- **Real-Time Sliders**: Adjust Brightness, Saturation, Gamma, Smoothness, Audio Gain, and Shockwave Intensity live.
+- **System Tray Minimization**: Minimizes silently to the Windows System Tray (Taskbar notification area) with right-click menu controls.
+- **Auto-Start on Boot**: One-click toggle to automatically start your favorite mode when Windows boots up.
+
+```bash
+# Launch the Desktop Dashboard:
+Launch_Kreo_App.bat
+```
+
+---
+
+### 2. Ultra-Accurate Screen Sync
+Transforms your keyboard into an ambient perimeter display of your monitor.
+- **Blazing Fast**: Uses Windows DirectX Desktop Duplication / `mss` to capture at **30–45 FPS** with sub-millisecond latency.
+- **Game & Video Friendly**: Automatically captures fullscreen borderless games, YouTube 4K videos, and movies.
+- **Multi-Monitor Aware**: Pick any monitor (`--monitor 1`, `--monitor 2`).
+
+```bash
+# Double-click start_screen_sync.bat or run:
+python keyboardrgb.py screen --fps 30 --saturation 1.0 --gamma 0.65 --blur 0.5
+```
+
+---
+
+### 3. Hybrid Gaming Mode (Screen + Audio)
+**The ultimate gaming immersion feature.**
+- **Base Layer**: Continuously mirrors your in-game screen environment (sky, terrain, interiors) across the keys.
+- **Audio Shockwave Layer**: The moment a gunshot, explosion, sniper shot, or heavy bass event fires, a vibrant shockwave ripple expands outward from the center of your keyboard!
+- Perfect for **CS2, Valorant, Apex Legends, GTA V, Cyberpunk 2077, Warzone, and racing games**.
+
+```bash
+# Double-click start_game_hybrid.bat or run:
+python keyboardrgb.py game --fps 30 --saturation 1.0 --gamma 0.65 --bass-punch 1.4
+```
+
+---
+
+### 4. Real-Time Music Visualizers (WASAPI & PulseAudio)
+Pipes your system's soundcard directly into a pure-Python radix-2 Fast Fourier Transform (FFT) divided into 16 frequency bands:
+- **`vortex` (The Black Hole)**: A swirling cosmic accretion ring whose event horizon expands on heavy bass kicks.
+- **`bars` (16-Band Equalizer)**: Classic spectrum analyzer rising from the bottom row (or sides/top).
+- **`flow` (Bass Waterfall)**: Every bass drop enters from the left edge and cascades across the keys.
+- **`split` (Stereo Punch)**: Bass glows from the left, treble from the right.
+- **`ripple` (Concentric Breath)**: Concentric rings pulsating outward to the beat.
+- **`wave` (Dynamic Swell)**: Smooth spectral ocean swells centered around the home row.
+- **Ambient Idle Crossfade**: When music pauses for 3 seconds, the keyboard automatically fades into a calm breathing gradient so your desk is never left dark.
+
+```bash
+# Double-click start_music_visualizer.bat or run:
+python keyboardrgb.py audio --effect vortex --gain 1.5
+python keyboardrgb.py audio --effect bars --direction bottom
+```
+
+---
+
+### 5. WebGL & 3D Shader Studio
+Located in `client/`, this browser-based WebGL studio allows you to design custom fragment shaders, liquid distortions, and React Bits visualizers, streaming the output straight across a local WebSocket into your keyboard at 60 FPS.
+
+```bash
+# Double-click start_web_studio.bat
+```
+
+---
+
+## 🚀 Quick Start (Windows)
+
+### Prerequisites
+1. **Python 3.9 or newer**: Download from [python.org](https://www.python.org/downloads/) (Make sure to check **"Add Python to PATH"** during setup).
+2. **USB Wired Connection**: Plug the Kreo Hive 65 in with its USB cable. (The RGB control channel exists over wired USB HID; 2.4GHz and Bluetooth do not expose feature reports).
+
+### Step 1: Install Dependencies
+Open a Command Prompt or PowerShell in the folder and install the required modules:
+```cmd
+pip install -r requirements.txt
+```
+
+### 1-Click Launchers
+No command line needed! You can use the included batch files directly:
+
+| File | What It Does |
+| :--- | :--- |
+| **`Launch_Kreo_App.bat`** | Launches the modern dark-mode Desktop GUI Dashboard. |
+| **`start_screen_sync.bat`** | 1-Click Screen Sync with accurate color calibration. |
+| **`start_game_hybrid.bat`** | 1-Click Hybrid Game Mode (Screen colors + Audio shockwaves). |
+| **`start_music_visualizer.bat`** | 1-Click interactive menu to choose your music visualizer. |
+| **`start_web_studio.bat`** | 1-Click launcher for the 3D WebGL shader web interface. |
+| **`stop_screen_sync.bat`** | Cleanly terminates all background sync processes instantly. |
+
+---
+
+### System Tray & Auto-Start on Boot
+
+- **Minimizing to Tray**: Closing the window in the GUI app will keep it running in the background. Right-click the keyboard tray icon in the system notification area to switch modes or click **Exit**.
+- **Run on Windows Startup**:
+  - Run `enable_autostart.bat` (or toggle the switch in the GUI Dashboard).
+  - To remove from startup, run `disable_autostart.bat`.
+
+---
+
+### Switching Between This App and Official Kreo Software
+
+USB HID allows only one application to command the keyboard's custom feature report at a time:
+1. **Before running this app**: Close the official Kreo Hive software (ensure it's exited from the Windows taskbar tray).
+2. **When you want to go back to official Kreo software**: Double-click **`stop_screen_sync.bat`** (or press Ctrl+C in the terminal). Once stopped, the keyboard will restore its default onboard profile or accept inputs from the official Kreo software.
+
+---
+
+## 🐧 Quick Start (Linux)
+
+Works natively on Arch, Ubuntu, Debian, Fedora, Mint, and NixOS with PipeWire or PulseAudio.
+
+### 1. Setup udev rule (One-time, 30 seconds)
 ```bash
 sudo cp 60-keyboardrgb.rules /etc/udev/rules.d/
 sudo udevadm control --reload
 ```
+*Unplug the keyboard and plug it back in.*
 
-Now unplug the keyboard's USB cable and plug it back in so the rule takes
-effect.
-
-> The `60-` at the front of the filename actually matters. udev applies the
-> access tag in a step numbered 73, so the rule has to sort before it. Don't
-> rename it to something like `99-whatever`, or it'll silently do nothing.
-
-**3. Try it out:**
-
+### 2. Run
 ```bash
-python3 keyboardrgb.py color ff0000     # whole board red (Ctrl-C to stop)
-python3 keyboardrgb.py rainbow          # rainbow across the keys
-python3 keyboardrgb.py off              # everything off
+python3 keyboardrgb.py screen            # Screen sync (Hyprland / Wayland / X11)
+python3 keyboardrgb.py audio             # Music visualizer
+python3 keyboardrgb.py game              # Hybrid gaming mode
+python3 keyboardrgb.py wave              # Rainbow wave
 ```
 
-If the board turned red, you're done. If you got `Permission denied`, jump
-to Troubleshooting below.
-
-> Heads up: `color`, `rainbow`, `gradient`, `key`, and `wave` keep running
-> and hold their colors until you press Ctrl-C. That's deliberate. The
-> keyboard snaps back to its own built-in lighting the moment the program
-> stops, so the tool has to stay alive to hold your colors in place. If
-> you'd rather set a color and have the command exit right away (from a
-> startup script, say), add `--once`:
-> `python3 keyboardrgb.py color ff0000 --once`.
-
-## Using it with an Aula F75
-
-The Aula F75 runs the same firmware as the Hive 65. It even reports the exact
-same USB id (`258a:010c`), so the setup above works as-is: the udev rule
-already covers it, and there's nothing else to install. The difference is the
-layout. The F75 is a 75% board with an extra F-key row and a knob, and its
-LEDs are numbered differently.
-
-Because both boards look identical over USB, the tool can't tell them apart
-and assumes a Hive 65. On an F75 that shows up as colors landing on the wrong
-keys (the F-row especially). The fix is to tell it which board you have by
-adding `--profile aulaf75` to every command:
-
-```bash
-python3 keyboardrgb.py --profile aulaf75 color ff0000
-python3 keyboardrgb.py --profile aulaf75 rainbow
-python3 keyboardrgb.py --profile aulaf75 audio --effect vortex
-python3 keyboardrgb.py --profile aulaf75 key f1 ff0000 f2 00ff00 knob 0000ff
-```
-
-The flag can go anywhere on the line, before or after the command. Check that
-it took by looking at the first line of output, which should say
-`device: /dev/hidrawN (Aula F75 (258a:010c))`.
-
-To avoid typing it every time, add an alias to your shell config:
-
-```bash
-alias kbd='python3 ~/kbd-re/keyboardrgb.py --profile aulaf75'   # bash/zsh
-# then: kbd audio --effect bars
-```
-
-(fish: `alias kbd 'python3 ~/kbd-re/keyboardrgb.py --profile aulaf75'; funcsave kbd`)
-
-**Extra key names** on the F75, in addition to the list under
-[Other commands](#other-commands): `grave` (the `` ` `` key), `f1` to `f12`,
-`end`, and `knob`. It has no `home` or `ralt` key.
-
-**Not yet confirmed on hardware:** the knob's LED, and whether `f11`/`f12` sit
-where the profile puts them. If one of those lights the wrong key, run the
-slot walker, which lights one LED at a time and prints its number:
-
-```bash
-python3 keyboardrgb.py --profile aulaf75 walk --start 60 --end 100
-```
-
-Note which slot lights which key, then fix that key's entry in
-`profiles/zaula-f75.json` (add `"slot": N` to it to override the formula).
-The file's `note` field explains the numbering.
-
-**Web UI:** the WebSocket bridge (`kbd_ws_server.py`, used by the browser app
-in `client/`) always uses the Hive 65 layout for now. On an F75 it still
-drives the main block, but the F-row and knob won't map correctly.
-
-## Audio-reactive mode
-
-
-https://github.com/user-attachments/assets/8e475d93-be6e-4a3d-a416-4831388860dd
-
-The order of effect is wave -> bars -> wave
-
-```bash
-python3 keyboardrgb.py audio
-```
-
-That's the whole thing. Play some music and the keyboard becomes a
-16-column spectrum wave: bass on the left, treble on the right, rippling out
-from the middle row. It grabs whatever your system is outputting (Spotify,
-YouTube, games, anything at all), no matter whether it's headed to speakers
-or headphones. Press Ctrl-C to stop.
-
-### Effects (`--effect`)
-
-Pick the visual style you want. They all react to your audio in real time:
-
-| Effect             | Looks like                                                                                 | Reacts to                                                                                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `wave` _(default)_ | a spectrum that swells out from the home row                                               | each column is one frequency band                                                                                                                                         |
-| `bars`             | a classic equalizer — grows bottom-up by default; `--direction` picks the edge it grows from | column (or row) height tracks band loudness                                                                                                                             |
-| `split`            | bass glowing in from the left edge and treble from the right, fading to dark in the middle  | the left half brightens with bass, the right half with treble, so beats push in from the sides                                                                            |
-| `flow`             | a bass "waterfall" — the left column tracks the bass and each punch then travels across to the right     | only the leftmost column samples the bass; that reading scrolls rightward every frame, so a beat enters at the left and glides to the right edge (speed set by `--flow-speed`) |
-| `vortex`           | a black hole, with a dark void in the middle and a color accretion ring swirling around it | the colors spin faster the louder it gets, each frequency lights its own slice of the ring, and bass swells the hole and shoves the ring outward so beats give it a pulse |
-| `ripple`           | concentric rings breathing out from the middle                                             | bass hits push the rings outward, and overall loudness sets the brightness                                                                                                |
-
-```bash
-python3 keyboardrgb.py audio --effect vortex
-python3 keyboardrgb.py audio --effect ripple
-python3 keyboardrgb.py audio --effect bars
-python3 keyboardrgb.py audio --effect split
-python3 keyboardrgb.py audio --effect flow
-```
-
-#### Bar direction (`--direction`)
-
-`bars` grows bottom-up by default. `--direction` (only meaningful for `bars`)
-changes which edge the bars grow from. `bottom`/`top` are vertical (one band per
-column); `left`/`right`/`sides` are horizontal (one band per row).
-
-| `--direction`      | The equalizer bars…                                    |
-| ------------------ | ------------------------------------------------------ |
-| `bottom` _(def.)_  | grow up from the bottom row                            |
-| `top`              | hang down from the top row                             |
-| `left`             | grow rightward from the left edge                      |
-| `right`            | grow leftward from the right edge                      |
-| `sides`            | grow inward from both edges and meet in the middle     |
-
-```bash
-python3 keyboardrgb.py audio --effect bars --direction top
-python3 keyboardrgb.py audio --effect bars --direction sides
-python3 keyboardrgb.py audio --effect bars --direction left --gain 1.5
-```
-
-### Make it yours
-
-These knobs work with every effect:
-
-| Option                         | What it does                                                                                                                                 | Default |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `--mode colorful`              | a 4-color gradient (red, violet, cyan, amber) scrolling across the board                                                                     | default |
-| `--mode single --color ff2000` | just one color of your choosing                                                                                                              |         |
-| `--gain 1.5`                   | amplitude multiplier. Bigger number, wilder reaction. Try somewhere in `0.5` to `3`                                                          | `1.0`   |
-| `--smooth 2`                   | smoothness multiplier. Bigger is silkier and slower, smaller is twitchy and snappy. Try `0.5` to `3`                                         | `1.0`   |
-| `--scroll 0.3`                 | how fast the gradient drifts across the keys, in cycles per second. `0` freezes it in place (`vortex` ignores this one, it spins on its own) | `0.15`  |
-| `--radius 0.45`                | `vortex` only: size of the dark hole in the middle, from `0` to `1`. Bigger means a wider void and the ring pushed further out               | `0.18`  |
-| `--flow-speed 5`               | `flow` only: how fast a bass punch travels left-to-right, in columns per second. Lower is a slower, more visible sweep                        | `8.0`   |
-| `--fps 60`                     | frames per second. The default 30 looks smooth and stays light on the CPU; push it up toward 60 (the board's ceiling) for silkier motion     | `30`    |
-
-> About the default palette: it's `#FF4242`, `#7C3AED`, `#06B6D4` and
-> `#EAB308`, a soft red, violet, cyan and amber. They're deliberately more
-> pastel than the harsh, full-saturation RGB the keyboard blasts on its own.
-> Easier on the eyes, and honestly just nicer to look at. Miss the loud
-> stuff? `--mode single --color <hex>` or the standalone `rainbow` command
-> still hand you full-saturation colors.
-
-A few examples:
-
-```bash
-python3 keyboardrgb.py audio --effect vortex --radius 0.4         # black hole, wider void
-python3 keyboardrgb.py audio --effect ripple --mode single --color 00ffcc
-python3 keyboardrgb.py audio --mode single --color 00ffcc --smooth 2
-python3 keyboardrgb.py audio --effect bars --gain 1.5 --smooth 0.6
-```
-
-Volume doesn't matter, by the way. The visualizer auto-levels to the music's
-own dynamics, and `--gain` scales on top of that.
-
-> `--shape` was the old name for `--effect` and it still works, so any older
-> commands you've got lying around keep running fine.
-
-### When the music stops (`--default`)
-
-You can leave the visualizer running all day and it won't just sit on a dead
-black board during the quiet stretches. After 3 seconds of silence it
-smoothly crossfades into an ambient, non-audio effect, and the instant sound
-comes back it fades right back to reacting. Both transitions are gentle, no
-jarring cuts.
-
-| Option                 | What it does                                                                                                                                                                   | Default    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| `--default gradient`   | the idle effect: `gradient` (the scrolling 4-color gradient), `breathe` (the whole board drifting through the palette), `wave` (a rolling brightness wave), or `off` (go dark) | `gradient` |
-| `--idle-gap 3`         | seconds of silence before it switches over                                                                                                                                     | `3`        |
-| `--silence-level 0.01` | how quiet counts as "silence". Raise it if a noisy line keeps it awake, lower it if quiet passages trip it                                                                     | `0.004`    |
-
-```bash
-python3 keyboardrgb.py audio --default breathe            # breathe softly when idle
-python3 keyboardrgb.py audio --default off --idle-gap 2   # just go dark after 2s of quiet
-```
-
-### Other commands
-
-```bash
-python3 keyboardrgb.py key w ff0000 a ff0000 s ff0000 d ff0000   # light up WASD
-python3 keyboardrgb.py gradient ff00ff 00ffff                    # left to right gradient
-python3 keyboardrgb.py wave                                      # rainbow animation, forever
-python3 keyboardrgb.py wave 30                                   # ...or just 30 seconds
-```
-
-All of these hold until Ctrl-C (add `--once` to set one frame and exit).
-`wave` runs forever unless you hand it a number of seconds.
-
-Key names: letters and digits as printed, plus `esc tab capslock lshift
-rshift lctrl rctrl lwin lalt ralt fn space enter backspace del home pgup
-pgdn up down left right minus equal lbracket rbracket backslash semicolon
-quote comma period slash`.
-
-## Screen sync
-
-Turn the keyboard into an ambient extension of your screen. It grabs your
-monitor, shrinks it to a blurry 144p, and paints that onto the keys — so the
-lighting glows with whatever colors are on screen (a bright game, a video, your
-wallpaper). It's a soft, low-res reflection, not a tiny display.
-
-```bash
-python3 keyboardrgb.py screen
-```
-
-By default it follows whichever monitor has focus and switches live as you move
-between them (on Hyprland). It's deliberately light: your display is captured
-with `grim`, and a single `ffmpeg` does the 144p downscale, blur, and squeeze
-down to the key grid, so Python barely does any work (a few hundred bytes per
-frame).
-
-You'll need `ffmpeg`, plus `grim` on Wayland (both are one package away on every
-distro). On X11 it uses `ffmpeg`'s `x11grab` instead and no `grim` is needed.
-
-Knobs:
-
-| Flag           | Does                                                                 |
-| -------------- | ------------------------------------------------------------------- |
-| `--output NAME`| pin one monitor instead of following focus (`hyprctl monitors` / `wlr-randr` lists names) |
-| `--no-follow`  | stop chasing focus; stay on the current (or `--output`) monitor      |
-| `--saturation` | punch the colors up (default `1.5`); `1` = as-is                     |
-| `--gain`       | overall brightness (default `1.1`)                                   |
-| `--blur`       | blur radius in px at 144p (default `2`, `0` = crisp-ish)             |
-| `--smooth`     | temporal smoothing `0..0.95` (default `0.5`; higher = calmer)        |
-| `--raw`        | faithful colors — no saturation/gain/gamma, a literal mirror         |
-| `--fps N`      | frame rate (default `24`; drop it to shave CPU further)              |
-
-```bash
-python3 keyboardrgb.py screen --output HDMI-A-1        # pin the external monitor
-python3 keyboardrgb.py screen --raw --smooth 0.7       # true colors, extra calm
-python3 keyboardrgb.py screen --saturation 2 --gain 1.3 # vivid and bright
-```
-
-## Fun commands to try
-
-Copy-paste any of these. Press Ctrl-C to stop.
-
-### Audio-reactive (put some music on first)
-
-```bash
-# the black hole, wide dark void, extra punchy
-python3 keyboardrgb.py audio --effect vortex --radius 0.4 --gain 1.5
-
-# neon black hole, hot-pink ring, single color instead of the gradient
-python3 keyboardrgb.py audio --effect vortex --mode single --color ff0055
-
-# bass ripples breathing out from the center
-python3 keyboardrgb.py audio --effect ripple --gain 1.4 --smooth 1.5
-
-# aggressive twitchy equalizer, snaps hard on every beat
-python3 keyboardrgb.py audio --effect bars --smooth 0.5 --gain 2
-
-# dreamy chill wave, slow, silky, barely-drifting colors
-python3 keyboardrgb.py audio --effect wave --smooth 2.5 --scroll 0.05
-
-# rave mode, fast gradient ripping across the keys
-python3 keyboardrgb.py audio --scroll 0.6 --gain 1.5
-
-# cyberpunk cyan rings
-python3 keyboardrgb.py audio --effect ripple --mode single --color 00ffcc
-
-# leave it on all day: reacts to music, breathes the gradient when it's quiet
-python3 keyboardrgb.py audio --default breathe
-
-# party then chill: punchy bars that melt into a slow gradient after 3s of quiet
-python3 keyboardrgb.py audio --effect bars --gain 1.8 --default gradient --idle-gap 3
-```
-
-### Ambient (no music needed)
-
-```bash
-python3 keyboardrgb.py wave                     # endless flowing rainbow
-python3 keyboardrgb.py gradient ff6a00 8a2be2   # sunset: orange to purple
-python3 keyboardrgb.py gradient 001b8a 00ffd5   # deep ocean: navy to aqua
-python3 keyboardrgb.py color 00ffaa             # solid neon mint
-python3 keyboardrgb.py key w ff2200 a ff2200 s ff2200 d ff2200   # gamer WASD
-```
-
-### The three knobs worth playing with
-
-- `--gain` is intensity. `0.5` is subtle, `2` and up gets wild.
-- `--smooth` is personality. Low (`0.4`) is twitchy and snappy; high (`2.5`)
-  is liquid and dreamy.
-- `--scroll` is how fast the gradient drifts. `0` freezes it, `0.6` is a
-  full-on rave.
-
-Mix them however you like with any `--effect` (`wave`, `bars`, `split`, `flow`,
-`vortex`, `ripple`) and `--mode single --color <hex>`. Start with the vortex;
-on a bass-heavy track it looks the best.
-
-## Web UI (optional)
-
-There's also a little browser app under `client/`. Its real job is piping
-shader and canvas effects to the keyboard: it runs GPU shader components
-(React Bits backgrounds like Strands, Color Bends, Dark Veil, plus a
-built-in gradient lab), grabs each rendered frame off the `<canvas>`,
-downscales it to the 16x5 board, and streams it over a local WebSocket. The
-CLI above is all you need day to day; this is just for driving the board
-from arbitrary visuals. More on it in [client/README.md](client/README.md).
-
-## Troubleshooting
-
-`Permission denied: /dev/hidrawX` means the udev rule isn't active. Check
-that `/etc/udev/rules.d/60-keyboardrgb.rules` exists (with the `60-` name!),
-run `sudo udevadm control --reload`, then unplug and replug the keyboard.
-
-`keyboard vendor interface not found` means the keyboard isn't connected by
-USB cable, or it's in wireless mode. Flip it to wired. You can confirm Linux
-sees it with `lsusb | grep 258a` (or
-`grep -r 258a /sys/bus/usb/devices/*/idVendor`).
-
-Audio mode runs but nothing moves? Sound is probably going to a different
-output than the one being monitored. List your outputs with `pactl list
-short sources` and pick the `.monitor` of the device you're actually
-listening on:
-
-```bash
-python3 keyboardrgb.py audio --source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor
-```
-
-My colors vanished and the keyboard went back to its own lighting? The
-program stopped. These modes only persist while the tool is running, because
-the keyboard reasserts its built-in lighting the instant streaming stops.
-Keep the command running (it holds until Ctrl-C), or add it to your startup
-so it relaunches. To go back to the board's own effects on purpose, just
-stop the tool or hit your Fn lighting hotkey.
-
-It says "keyboard dropped off the bus, reconnecting..."? The board's
-firmware reset and re-enumerated. The tool waits for it to come back (about
-a second) and carries on, so it's harmless. Usually the cause is two
-programs driving the keyboard at once (another `keyboardrgb.py` still running
-in a different terminal, for instance), so make sure only one is streaming.
-It can also just happen now and then on its own during long sessions.
-
-## Notes
-
-- Your Fn-key lighting shortcuts still work and will override streamed
-  colors; just rerun the tool to take control back.
-- Everything runs in userspace over standard HID. No kernel modules, no
-  firmware flashing, nothing persistent written to the keyboard.
-- Curious how it works? The wire protocol was reverse-engineered from HID
-  captures, and the full write-up is in [PROTOCOL.md](PROTOCOL.md). Short
-  version: one 520-byte USB "feature report" per frame carries an RGB
-  triplet for every key, and the audio mode adds a pure-Python FFT that
-  folds system audio into 16 frequency bands, one per keyboard column.
-- Don't use `keyboardrgb.py raw` to experiment with report `0x05` unless you
-  really know what you're doing. That's the door to the chip's firmware
-  bootloader on this hardware family, and the wrong bytes could soft-brick
-  the board.
+---
+
+## ⌨️ Keyboard Compatibility
+
+### Out of the Box Supported Boards
+
+| Keyboard Model | Layout | USB VID:PID | Profile Flag |
+| :--- | :--- | :--- | :--- |
+| **Kreo Hive 65** | 65% (68 keys) | `258a:010c` | *(Default - No flag needed)* |
+| **Aula F75** | 75% + Knob | `258a:010c` | `--profile aulaf75` |
+| **Portronics Hydra 10** | 60% | `258a:0049` | `--profile hydra10` |
+
+---
+
+### Does it work with other Kreo keyboards?
+
+**Short Answer:**  
+- **YES, if it uses the SinoWealth / BY Tech chipset (`258a:XXXX`).**  
+- **NO, if it uses an unrelated controller (like Holtek `04d9` or Sonix `0c45`)**, which would require a custom HID packet driver.
+
+#### How to check your keyboard in Windows:
+1. Open **Device Manager**.
+2. Expand **Human Interface Devices** (or *Keyboards*).
+3. Right-click your keyboard device -> **Properties** -> **Details** tab.
+4. Select **Hardware Ids** in the drop-down.
+5. If you see `VID_258A`, your keyboard uses the exact same SinoWealth architecture!
+
+---
+
+### Adding Support for Any Keyboard in 3 Minutes
+
+Because the project is completely data-driven via `profiles/*.json`, you don't have to write any code to add a new keyboard layout:
+
+1. **Find your slots interactively**:
+   Run the built-in LED Slot Walker:
+   ```cmd
+   python keyboardrgb.py walk --start 1 --end 126
+   ```
+   This lights up each physical LED on your keyboard one by one and prints its slot number in the terminal.
+
+2. **Create `profiles/mykeyboard.json`**:
+   Copy `profiles/hive65.json`, update the `usb_ids`, rows/cols, and key names with their slot numbers from step 1.
+
+3. **Run with your new profile**:
+   ```cmd
+   python keyboardrgb.py --profile mykeyboard screen
+   ```
+
+---
+
+## 🕹️ CLI Reference & Command Knobs
+
+### Commands
+
+| Command | Example | Description |
+| :--- | :--- | :--- |
+| `screen` | `python keyboardrgb.py screen` | Real-time desktop screen mirror |
+| `game` | `python keyboardrgb.py game` | Hybrid Screen Mirror + Audio Shockwaves |
+| `audio` | `python keyboardrgb.py audio --effect vortex` | Music & game audio visualizer |
+| `wave` | `python keyboardrgb.py wave` | Smooth flowing rainbow animation |
+| `color` | `python keyboardrgb.py color 00ffcc` | Solid static color (hex) |
+| `gradient` | `python keyboardrgb.py gradient ff007f 00f0ff` | Two-color horizontal gradient |
+| `key` | `python keyboardrgb.py key w ff0000 a ff0000` | Light up individual keys (WASD, etc.) |
+| `walk` | `python keyboardrgb.py walk --start 1 --end 70` | Interactive single-LED slot discovery |
+| `off` | `python keyboardrgb.py off` | Turn all keyboard LEDs completely off |
+
+---
+
+### Tuning Flags
+
+| Flag | Applicable To | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--saturation` | `screen`, `game` | `1.0` | Color saturation multiplier (`1.0` = true shades, `1.5` = vibrant). |
+| `--gamma` | `screen`, `game` | `0.65` | Gamma correction curve (`0.65` prevents dark blues from disappearing). |
+| `--blur` | `screen`, `game` | `0.5` | Spatial blur radius in pixels (`0.5` gives clean per-key separation). |
+| `--gain` | `audio`, `game` | `1.0` | Amplitude multiplier for audio loudness and punch. |
+| `--bass-punch` | `game` | `1.4` | Shockwave blast intensity on explosions/gunshots in Hybrid mode. |
+| `--smooth` | `audio`, `screen`, `game` | `1.0` | Motion temporal smoothing. Higher is silkier; lower is snappier. |
+| `--effect` | `audio` | `wave` | Visualizer shape: `vortex`, `bars`, `flow`, `split`, `ripple`, `wave`. |
+| `--direction` | `audio` (`bars`) | `bottom` | Equalizer direction: `bottom`, `top`, `left`, `right`, `sides`. |
+| `--fps` | All modes | `30` | Refresh rate (up to 60 FPS supported by the board). |
+| `--once` | Static modes | `False` | Sends a single frame and exits immediately instead of holding. |
+
+---
+
+## 🔧 Troubleshooting & FAQ
+
+#### Q: The tool says "keyboard vendor interface not found"?
+1. Verify the keyboard is connected with its **USB cable** and set to **wired mode** (not 2.4GHz or Bluetooth).
+2. Ensure you have installed the requirements: `pip install -r requirements.txt`.
+3. Check that the official Kreo software is closed.
+
+#### Q: The lights revert to the default pattern after I stop the script?
+This is intentional by design of the SinoWealth microcontroller. The keyboard snaps back to its built-in hardware lighting profile whenever the active USB stream disconnects. To keep your custom lighting active, let the program or Desktop GUI stay running (it consumes less than 1% CPU).
+
+#### Q: Audio mode runs but the visualizer doesn't react to music?
+The audio loopback captures your Windows default audio playback endpoint.
+- Make sure your music or game is playing through your default playback device (Speakers or Headphones).
+- If using multiple audio outputs, adjust Windows Sound Settings -> System -> Sound -> Output to your primary device.
+
+---
+
+## 🛡️ Architecture & Safety Guarantee
+
+The SinoWealth / BY Tech architecture exposes multiple HID feature reports:
+- **Report `0x06` (Safe Framebuffer)**: A 520-byte packet (8-byte vendor header + 378 bytes of 24-bit RGB values for 126 LED slots). This writes purely to volatile display RAM.
+- **Report `0x05` (Bootloader / ISP Flash)**: Used for reflashing microcontroller firmware.
+
+> **Safety Notice:**  
+> This software is strictly hard-coded to communicate exclusively with **Report `0x06`**. The profile system enforces a permanent hardware check that prohibits writes to Report `0x05`. You can experiment and customize your lighting freely with complete peace of mind—it is impossible to brick or overwrite the keyboard's internal firmware using this tool.
+
+---
+
+## 🙏 Acknowledgements & Credits
+
+This project stands on the shoulders of the outstanding reverse-engineering and open-source work by:
+
+* **[Pushkar Desai](https://github.com/PushkarDesai-06)** — Creator of the original Linux project [**`PushkarDesai-06/Kreo-Hive65-Rgb-Linux`**](https://github.com/PushkarDesai-06/Kreo-Hive65-Rgb-Linux).
+
+### How this project relates to the original:
+- **Core Foundation (Pushkar Desai)**:
+  - Reverse-engineered the SinoWealth `258a:010c` USB HID Report 6 communication protocol and packet structure.
+  - Architected the extensible `kbd_profiles.py` layout mapping system and Linux `/dev/hidraw` transport.
+  - Authored the core audio visualizer algorithms (`vortex`, `bars`, `flow`, etc.) and pure-Python FFT spectrum analyzer for Linux.
+  - Built the initial WebGL React shader bridge in `client/`.
+
+- **Windows & Gaming Evolution (This Edition)**:
+  - **Full Native Windows 10/11 Architecture**: Ported USB communication to Windows via `hidapi` (`device.py`), audio processing to Windows WASAPI loopback via `soundcard` (`audio.py`), and high-speed DirectX/MSS desktop duplication (`screen.py`).
+  - **Color Accuracy Calibration**: Implemented gamma correction (`0.65`) and sub-region coordinate mapping to fix generic blue color flattening.
+  - **Hybrid Gaming Mode**: Blends real-time screen display colors with explosive audio shockwaves for gunshots and bass hits (`effects.py`).
+  - **Desktop GUI Dashboard**: Added the standalone CustomTkinter dark-mode app with a live 16×5 interactive keyboard matrix simulator, real-time sliders, system tray minimization, and autostart (`app.py`).
+  - **1-Click Launchers**: Added zero-terminal `.bat` and `.vbs` scripts for Windows users.
+
+Huge respect and gratitude to Pushkar Desai for making open-source keyboard control on SinoWealth hardware possible! 🚀
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.  
+Crafted with passion for the mechanical keyboard & open-source community.

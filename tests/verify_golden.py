@@ -58,7 +58,12 @@ def install():
     """Monkeypatch the modules for deterministic, hardware-free capture. Patch
     targets follow the post-split layout: find_device lives in device, AudioTap
     is looked up in effects."""
-    import fcntl
+    try:
+        import fcntl
+        fcntl.ioctl = _fake_ioctl
+    except ImportError:
+        pass
+
     import glob
     import time
 
@@ -67,7 +72,14 @@ def install():
 
     glob.glob = lambda pat: [FAKE_NODE] if "hidraw" in pat else []
     device.open = _fake_open          # shadows builtin open inside find_device
-    fcntl.ioctl = _fake_ioctl
+    device.find_device = lambda profiles=None, sysfs_root=None: ("/dev/hidraw0", device.PROFILES["hive65"])
+    device.Kbd.flush = lambda self: CAPTURED.append(bytes(self.build_packet()))
+    _orig_kbd_init = device.Kbd.__init__
+    def _fake_init(self, profile=None, dev=None):
+        self.p = profile or device.DEFAULT
+        self.dev = dev or "/dev/hidraw0"
+        self.rgb = bytearray(self.p.num_slots * 3)
+    device.Kbd.__init__ = _fake_init
     time.monotonic = lambda: 1000.0   # pinned clock -> t == 0 everywhere
     time.time = lambda: 1000.0
 

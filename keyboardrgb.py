@@ -106,6 +106,7 @@ from effects import (
     render_rainbow,
     run_audio,
     run_flux,
+    run_game,
     run_screen,
     run_wave,
 )
@@ -208,10 +209,13 @@ def main():
     cmd = a[0]
     if dev_override:
         # forced node: detect its profile (unless --profile pinned it)
-        sysfs = os.path.join("/sys/class/hidraw", os.path.basename(dev_override))
-        prof = PROFILES[prof_name] if prof_name else _match_node(sysfs, profiles)
-        if prof is None:
-            raise SystemExit(f"{dev_override}: no known profile matches this node")
+        if sys.platform == "win32":
+            prof = PROFILES[prof_name] if prof_name else PROFILES[kbd_profiles.DEFAULT_ID]
+        else:
+            sysfs = os.path.join("/sys/class/hidraw", os.path.basename(dev_override))
+            prof = PROFILES[prof_name] if prof_name else _match_node(sysfs, profiles)
+            if prof is None:
+                raise SystemExit(f"{dev_override}: no known profile matches this node")
         k = Kbd(profile=prof, dev=dev_override)
     else:
         dev, prof = find_device(profiles)
@@ -251,6 +255,8 @@ def main():
         run_audio(k, a[1:])
     elif cmd == "screen":
         run_screen(k, a[1:])
+    elif cmd == "game":
+        run_game(k, a[1:])
     elif cmd == "walk":
         run_walk(k, a[1:])
     elif cmd == "raw":
