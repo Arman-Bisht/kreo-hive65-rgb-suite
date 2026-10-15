@@ -42,6 +42,9 @@ Standard keyboard software is often sluggish, closed-source, limited to static c
 
 This project unlocks the full hardware capability of the **Kreo Hive 65** (and other keyboards using the **SinoWealth / BY Tech `258a:010c` MCU family**). It speaks directly to the keyboard's internal LED framebuffer via raw USB HID reports at up to **60 FPS** with **zero noticeable CPU overhead**.
 
+> [!TIP]
+> **Keycap Recommendation:** This setup works best with **shine-through (backlit) or pudding keycaps**! Because light passes directly through the legends and key housings, shine-through keycaps give you the clearest individual key color separation and the most vibrant, immersive experience when running screen sync, games, or music visualizers.
+
 ---
 
 ## 🎨 Why This Exists: The Color Accuracy Breakthrough
@@ -135,6 +138,7 @@ Located in `client/`, this browser-based WebGL studio allows you to design custo
 ### Prerequisites
 1. **Python 3.9 or newer**: Download from [python.org](https://www.python.org/downloads/) (Make sure to check **"Add Python to PATH"** during setup).
 2. **USB Wired Connection**: Plug the Kreo Hive 65 in with its USB cable. (The RGB control channel exists over wired USB HID; 2.4GHz and Bluetooth do not expose feature reports).
+3. **Keycaps (Recommended for Best Experience)**: Works best with **shine-through or pudding keycaps** so the per-key screen colors and music waves shine directly through your legends.
 
 ### Step 1: Install Dependencies
 Open a Command Prompt or PowerShell in the folder and install the required modules:
