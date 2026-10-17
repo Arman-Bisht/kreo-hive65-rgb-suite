@@ -91,6 +91,12 @@ Transforms your keyboard into an ambient perimeter display of your monitor.
 python keyboardrgb.py screen --fps 30 --saturation 1.0 --gamma 0.65 --blur 0.5
 ```
 
+> [!TIP]
+> **🎬 Recommended Test Videos (AMVs):**  
+> To see the full color depth, micro-shade separation, and zero-latency response in action, play these two colorful AMVs in fullscreen:
+> - [**Kimi to Nami ni Noretara 「AMV」 - Ghost Of You**](https://youtu.be/w0Sj9f_w_uI?si=FOpeJXx-k4J6SASa) — Vibrant ocean blues, warm golden hour sunsets, and high-contrast gradients.
+> - [**「AMV」 COLORS \| Anime Mix**](https://youtu.be/MfiZCgJNTWE?si=blcaqznAznOc_TN2) — Explosive multi-color scene transitions, neon highlights, and rapid cuts perfect for benchmarking.
+
 ---
 
 ### 3. Hybrid Gaming Mode (Screen + Audio)
